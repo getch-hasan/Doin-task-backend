@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 // import User from "../models/user.model";
 import { generateAccessToken, generateRefreshToken } from "../utils/token.util";
 import { User } from "../models/user.model";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 // ✅ Registration with Password Hashing
 export const register = async (req: Request, res: Response) => {
@@ -136,3 +137,33 @@ export const getUsers = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Error fetching users" });
   }
 };
+
+
+
+
+// ✅ Get User Profile (by token or param)
+export const getProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || req.params.id; // ✅ now TS knows about req.user
+
+    if (!userId) {
+       res.status(400).json({ message: "User ID is required" });
+       return
+    }
+
+    const user = await User.findById(userId).select(
+      "-password -resetPasswordOTP -resetPasswordExpires"
+    );
+
+    if (!user) {
+       res.status(404).json({ message: "User not found" });
+       return
+    }
+
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+

@@ -6,7 +6,7 @@ export const createTask = async (req: Request, res: Response) => {
   try {
     const { title, description, category, status, assignedUser, dueDate } = req.body;
 
-    if (!title || !description || !category || !status || !assignedUser || !dueDate) {
+    if (!title || !description  || !status || !assignedUser || !dueDate) {
       res.status(400).json({ error: "All fields are required" });
       return;
     }
@@ -14,7 +14,6 @@ export const createTask = async (req: Request, res: Response) => {
     const newTask = new Task({
       title,
       description,
-      category,
       status,
       assignedUser,
       dueDate,
@@ -35,22 +34,48 @@ export const createTask = async (req: Request, res: Response) => {
   }
 };
 
-// GET all Tasks
+// GET all Tasks by status and pagination 
 export const getTasks = async (req: Request, res: Response) => {
   try {
-    const tasks = await Task.find().populate("category");
-    res.status(200).json({ message: "Tasks fetched successfully", tasks });
+    const { status, page = "1", per_page = "10" } = req.query; // ✅ include pagination
+    const filter: any = {};
+
+    if (status) {
+      filter.status = new RegExp(`^${status}$`, "i"); // case-insensitive match
+    }
+
+    const pageNum = parseInt(page as string, 10);
+    const perPageNum = parseInt(per_page as string, 10);
+
+    const tasks = await Task.find(filter)
+      .populate("assignedUser")
+      .skip((pageNum - 1) * perPageNum)
+      .limit(perPageNum);
+
+    const total = await Task.countDocuments(filter);
+
+    res.status(200).json({
+      message: "Tasks fetched successfully",
+      page: pageNum,
+      per_page: perPageNum,
+      total,
+      tasks,
+    });
   } catch (error) {
     console.error("Error fetching tasks:", error);
-    res.status(500).json({ message: "Tasks fetch failed", details: (error as Error).message });
+    res.status(500).json({
+      message: "Tasks fetch failed",
+      details: (error as Error).message,
+    });
   }
 };
+
 
 // GET Task by ID
 export const getTaskById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const task = await Task.findById(id).populate("category");
+    const task = await Task.findById(id).populate("assignedUser");
 
     if (!task) {
       res.status(404).json({ error: "Task not found" });
@@ -77,9 +102,9 @@ export const updateTask = async (req: Request, res: Response) => {
 
     const updatedTask = await Task.findByIdAndUpdate(
       id,
-      { title, description, category, status, assignedUser, dueDate },
+      { title, description, status, assignedUser, dueDate },
       { new: true, runValidators: true }
-    ).populate("category");
+    ).populate("assignedUser");
 
     if (!updatedTask) {
       res.status(404).json({ error: "Task not found" });

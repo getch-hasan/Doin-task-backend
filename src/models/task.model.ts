@@ -12,7 +12,7 @@ interface ITask extends Document {
 const TaskSchema = new Schema<ITask>({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+  category: { type: Schema.Types.ObjectId, ref: "Category", },
   status: {
     type: String,
     enum: ["Pending", "In Progress", "Completed"],
