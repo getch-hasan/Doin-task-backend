@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Task from "../models/task.model"; 
 import { AuthRequest } from "../middlewares/auth.middleware";
 
+
 // CREATE Task
 export const createTask = async (req: Request, res: Response) => {
   try {
@@ -179,3 +180,43 @@ export const searchTask = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal Server Error", details: (error as Error).message });
   }
 };
+
+
+
+
+
+
+
+export const getTaskSummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const filter: any = {};
+    if (req.user?.role !== "admin") {
+      filter.assignedUser = { $in: [req.user?.userId] };
+    }
+
+    // 🔹 Count tasks by each status
+    const pending = await Task.countDocuments({ ...filter, status: "Pending" });
+    const inProgress = await Task.countDocuments({ ...filter, status: "In Progress" });
+    const completed = await Task.countDocuments({ ...filter, status: "Completed" });
+
+    const total = pending + inProgress + completed;
+
+    res.status(200).json({
+      message: "Task summary fetched successfully",
+      total,
+      summary: {
+        pending,
+        inProgress,
+        completed,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching task summary:", error);
+    res.status(500).json({
+      message: "Tasks summary fetch failed",
+      details: (error as Error).message,
+    });
+  }
+};
+
+
