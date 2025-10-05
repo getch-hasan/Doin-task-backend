@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Task from "../models/task.model"; 
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 // CREATE Task
 export const createTask = async (req: Request, res: Response) => {
@@ -35,22 +36,32 @@ export const createTask = async (req: Request, res: Response) => {
 };
 
 // GET all Tasks by status and pagination 
-export const getTasks = async (req: Request, res: Response) => {
+
+
+export const getTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const { status, page = "1", per_page = "10" } = req.query; // ✅ include pagination
-    const filter: any = {};
-
-    if (status) {
-      filter.status = new RegExp(`^${status}$`, "i"); // case-insensitive match
-    }
-
+    const { status, page = "1", per_page = "10" } = req.query;
     const pageNum = parseInt(page as string, 10);
     const perPageNum = parseInt(per_page as string, 10);
 
+    const filter: any = {};
+
+    // ✅ Only apply restriction if NOT admin
+    if (req.user?.role !== "admin") {
+      filter.assignedUser = { $in: [req.user?.userId] };
+    }
+
+    // ✅ Optional status filter
+    if (status) {
+      filter.status = new RegExp(`^${status}$`, "i");
+    }
+
+
     const tasks = await Task.find(filter)
-      .populate("assignedUser")
+      .populate("assignedUser", "name email role")
       .skip((pageNum - 1) * perPageNum)
-      .limit(perPageNum);
+      .limit(perPageNum)
+      .sort({ createdAt: -1 });
 
     const total = await Task.countDocuments(filter);
 
@@ -69,6 +80,9 @@ export const getTasks = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+
 
 
 // GET Task by ID
